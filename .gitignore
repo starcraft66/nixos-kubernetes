@@ -16,3 +16,6 @@ show.json
 ### Nix ###
 boot/image
 certs/generated
+
+# Direnv
+.direnv
