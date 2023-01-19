@@ -3,7 +3,7 @@ let
   inherit (import ../../consts.nix) virtualIP;
 in
 {
-  imports = [ ./coredns.nix ./flannel.nix ];
+  imports = [ ./coredns.nix ./cilium.nix ];
 
   deployment.keys = {
     "ca.pem" = {

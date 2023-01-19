@@ -1,5 +1,7 @@
 let
-  pkgs = import (import ./nixpkgs.nix) { };
+  pkgs = import (import ./nixpkgs.nix) { overlays = [
+    (self: super: {cni-plugin-cilium = super.callPackage ./pkgs/cni-plugin-cilium.nix { };})
+  ]; };
   lib = pkgs.lib;
 
   inherit (pkgs.callPackage ./resources.nix { }) resources resourcesByRole;
@@ -32,7 +34,7 @@ let
 in
 {
   meta = {
-    nixpkgs = import (import ./nixpkgs.nix);
+    nixpkgs = pkgs;
   };
 
   defaults = { name, self, ... }: {

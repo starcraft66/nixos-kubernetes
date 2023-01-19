@@ -39,6 +39,8 @@ pkgs.mkShell {
     # software for testing
     etcd
     kubectl
+    cilium-cli
+    hubble
     openssl
 
     # scripts
