@@ -26,12 +26,21 @@ in
     enable = true;
     config = ''
       .:53 {
-        kubernetes cluster.local {
+        errors
+        health
+        ready
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
           endpoint https://${virtualIP}
           tls /var/lib/secrets/coredns/coredns-kube.pem /var/lib/secrets/coredns/coredns-kube-key.pem /var/lib/secrets/coredns/kube-ca.pem
           pods verified
+          fallthrough in-addr.arpa ip6.arpa
         }
-        forward . 1.1.1.1:53 1.0.0.1:53
+        prometheus :9153
+        forward . /etc/resolv.conf
+        cache 30
+        loop
+        reload
+        loadbalance
       }
     '';
   };
