@@ -1,4 +1,8 @@
-# Toy highly-available Kubernetes cluster on NixOS
+# Production-grade highly-available Kubernetes on NixOS
+
+Based on https://github.com/justinas/nixos-ha-kubernetes
+
+---
 
 <!-- vim-markdown-toc GFM -->
 
@@ -6,10 +10,9 @@
     * [Motivation](#motivation)
     * [Architecture](#architecture)
     * [Goals](#goals)
-    * [Non-goals](#non-goals)
 * [Trying it out](#trying-it-out)
     * [Prerequisites](#prerequisites)
-    * [Running](#running)
+    * [Running the development cluster](#running)
     * [Verifying](#verifying)
     * [Modifying](#modifying)
     * [Destroying](#destroying)
@@ -21,54 +24,54 @@
 
 ## About
 
-A recipe for a cluster of virtual machines managed by [Terraform](https://www.terraform.io/),
-running a highly-available Kubernetes cluster,
-deployed on NixOS using [Colmena](https://github.com/zhaofengli/colmena).
+I hope for this project to become a resource to build robust production-grade kubernetes clusters on bare metal servers and/or virtual machines running NixOS.
+A sample [Terraform](https://www.terraform.io/) deployment for running such a cluster for development and testing is provided. At the moment, it only supports deployment on linux hosts running libvirt.
+Everything is deployed quickly in parallel using [Colmena](https://github.com/zhaofengli/colmena).
 
 ### Motivation
 
-NixOS provides a Kubernetes module, which is capable of running a `master` or `worker` node.
-The module even provides basic PKI, making running simple clusters easy.
-However, HA support is limited (see, for example,
-[this comment](https://github.com/NixOS/nixpkgs/blob/acab4d1d4dff1e1bbe95af639fdc6294363cce66/nixos/modules/services/cluster/kubernetes/pki.nix#L329)
-and an [empty section](https://nixos.wiki/wiki/Kubernetes#N_Masters_.28HA.29)
-for "N masters" in NixOS wiki).
+I started my kubernetes journey when I was still learning the basics of Nix. I saw that there was a NixOS module in nixpkgs for running Kubernetes, however, it looked very basic and left essential tasks to the reader like certificate management. There is an "easy-certs" bootstrap mode but it is noted that it is insecure and should not be used for production clusters. High availability support is also limited using this module.
 
-This project serves as an example of using the NixOS Kubernetes module in an advanced way,
-setting up a cluster that is highly-available on all levels.
+I ended up going down the path of deploying my cluster on Ubuntu servers using the kubespray ansible playbook. I already wasn't fond of ansible back then and am even less fond of it after managing a kubernetes cluster using it. It is dog slow and bloats your system with accumulated state. During the couple of years I've been running a cluster for, I've always been on the lookout for better kubernetes deployment tools and made gripes against pretty much every kubernetes installer out there. Some of them only support deploying in the cloud and almost all of them require you to separately install and manage a linux distribution underneath them so that they can do their work.
+
+Using NixOS, I hope to alleviate the pain points laid out above by deploying a stateless operating system pre-configured to run a highly available Kubernetes cluster on bare metal. This methodology will allow for easy up and downgrades as well as manual cluster scaling.
+
+Because the nixpkgs kubernetes module is unsuitable for running a production-grade cluster, I hope to build my own modules and provide my own packages to offer the best kubernetes experience on NixOS independently of nixpkgs.
 
 ### Architecture
 
 External etcd topology,
 [as described by Kubernetes docs](https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/ha-topology/#external-etcd-topology),
 is implemented.
-The cluster consists of:
-* 3 `etcd` nodes
-* 3 `controlplane` nodes, running
+A cluster consists of:
+* 3+ `etcd` nodes
+* 3+ `controlplane` nodes, running
   `kube-apiserver`, `kube-controller-manager`, and `kube-scheduler`.
-* 2 `worker` nodes, running `kubelet`, `kube-proxy`,
+* 1+ `worker` nodes, running `kubelet`, `kube-proxy`,
   `coredns`, and a CNI network (currently `flannel`).
-* 2 `loadbalancer` nodes, running `keepalived` and `haproxy`,
+* 1+ `loadbalancer` nodes, running `keepalived` and `haproxy`,
   which proxies to the Kubernetes API.
 
+The demo cluster contained in this repo deploys a cluster containing:
+* 3 `etcd` nodes
+* 3 `controlplane` nodes
+* 2 `worker` nodes
+* 2 `loadbalancer` nodes
+
 ### Goals
-* All infrastructure declaratively managed by Terraform and Nix (Colmena).
-  Zero `kubectl apply -f foo.yaml` invocations required to get a functional cluster.
-* All the infrastructure-level services run directly on NixOS / systemd.
-  Running `k get pods -A` after the cluster is spun up lists zero pods.
-* Functionality. The cluster should be able to run basic real-life deployments,
-  although 100% parity with high-profile Kubernetes distributions is unlikely to be reached.
+* All infrastructure declaratively managed using Nix and deployed with Colmena. (The development cluster is managed by Terraform.)
+* Infrastructure-level services run directly on NixOS / systemd when it makes sense to do so.
+  The Cilium CNI will be installed using their officially-supported installer once the cluster is running.
+* Functionality, the cluster should have 100% parity with clusters deployed by `kubeadm`.
 * High-availability.
   A failure of a single service (of any kind) or a single machine (of any role)
   shall not leave the cluster in a non-functional state.
 
-### Non-goals
-* Production-readiness. I am not an expert in any of: Nix, Terraform, Kubernetes, HA, etc.
-* Perfect security (see the above point).
-  Some basic measures are taken: NixOS firewall is left turned on
-  (although some overly permissive rules may be in place),
-  Kubernetes uses ABAC and RBAC,
-  and TLS auth is used between the services.
+### Future goals
+* Cluster TLS PKI bootstraping and management using [HashiCorp Vault](https://github.com/hashicorp/vault) and [consul-template](https://github.com/hashicorp/consul-template)
+* Use of cilium's BGP control plane.
+  Will enable high-availability of all networking endpoints using pure layer-3 networking.
+  Additional router VMs will be added to the development cluster for the cluster nodes to peer with.
 
 ## Trying it out
 
@@ -87,7 +90,7 @@ The cluster consists of:
 * `10.240.0.0/24` IPv4 subnet available (as in, not used for your home network or similar).
   This is used by the "physical" network of the VMs.
 
-### Running
+### Running the development cluster
 
 ```console
 $ nix-shell
@@ -96,6 +99,8 @@ $ ter init        # Initialize terraform modules
 $ ter apply       # Create the virtual machines
 $ make-certs      # Generate TLS certificates for Kubernetes, etcd, and other daemons.
 $ colmena apply   # Deploy to your cluster
+$ cilium install  # Install cilium into the cluster
+$ cilium hubble enable --ui # Enable the cilium hubble observatory
 ```
 
 Most of the steps can take several minutes each when running for the first time.
