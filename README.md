@@ -76,6 +76,7 @@ The demo cluster contained in this repo deploys a cluster containing:
 * Use of cilium's BGP control plane.
   Will enable high-availability of all networking endpoints using pure layer-3 networking.
   Additional router VMs will be added to the development cluster for the cluster nodes to peer with.
+* Complete IPv6 support. IPv6-only, dual-stack, NAT/DNS64.
 
 ## Trying it out
 
