@@ -10,6 +10,7 @@ Based on https://github.com/justinas/nixos-ha-kubernetes
     * [Motivation](#motivation)
     * [Architecture](#architecture)
     * [Goals](#goals)
+    * [Future goals](#future-goals)
 * [Trying it out](#trying-it-out)
     * [Prerequisites](#prerequisites)
     * [Running the development cluster](#running)
@@ -68,7 +69,10 @@ The demo cluster contained in this repo deploys a cluster containing:
   shall not leave the cluster in a non-functional state.
 
 ### Future goals
-* Cluster TLS PKI bootstraping and management using [HashiCorp Vault](https://github.com/hashicorp/vault) and [consul-template](https://github.com/hashicorp/consul-template)
+* Self-contained.
+  This project won't need to rely on nixpkgs for upstream kubernetes modules or kubernetes packages.
+  All of the packages for kubernetes components will be provided by the flake and for multiple given versions of kubernetes, not just the one that happens to be available in nixpkgs.
+* Cluster TLS PKI bootstrapping and management using [HashiCorp Vault](https://github.com/hashicorp/vault) and [consul-template](https://github.com/hashicorp/consul-template).
 * Use of cilium's BGP control plane.
   Will enable high-availability of all networking endpoints using pure layer-3 networking.
   Additional router VMs will be added to the development cluster for the cluster nodes to peer with.
